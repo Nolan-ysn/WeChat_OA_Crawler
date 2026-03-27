@@ -1,0 +1,15 @@
+articles/
+pdfs/
+OAlist.txt
+*.pdf
+
+crawler_config.json
+processed_urls.json
+crawler.log
+
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv/
+venv/

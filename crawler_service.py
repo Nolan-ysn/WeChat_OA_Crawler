@@ -81,23 +81,48 @@ class CrawlerConfig:
         try:
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # 更新配置
+                # 鉴权配置
                 if 'token' in data:
                     self.token = data['token']
                 if 'cookie' in data:
                     self.cookie = data['cookie']
+                # 目标公众号
                 if 'target_accounts' in data:
                     self.target_accounts.update(data['target_accounts'])
+                # 爬虫策略配置
                 if 'limit_per_account' in data:
                     self.limit_per_account = data['limit_per_account']
                 if 'crawl_interval_minutes' in data:
                     self.crawl_interval_minutes = data['crawl_interval_minutes']
+                # Webhook 配置
                 if 'webhook_url' in data:
                     self.webhook_url = data['webhook_url']
+                # 广告过滤配置
+                if 'enable_ad_filter' in data:
+                    self.enable_ad_filter = data['enable_ad_filter']
                 if 'ad_keywords' in data:
                     self.ad_keywords = data['ad_keywords']
                 if 'min_content_length' in data:
                     self.min_content_length = data['min_content_length']
+                # 去重配置
+                if 'enable_dedup' in data:
+                    self.enable_dedup = data['enable_dedup']
+                if 'max_dedup_records' in data:
+                    self.max_dedup_records = data['max_dedup_records']
+                # 输出配置
+                if 'output_modes' in data:
+                    self.output_modes = data['output_modes']
+                if 'output_file_dir' in data:
+                    self.output_file_dir = data['output_file_dir']
+                if 'output_file_format' in data:
+                    self.output_file_format = data['output_file_format']
+                # PDF 生成配置
+                if 'enable_pdf_generation' in data:
+                    self.enable_pdf_generation = data['enable_pdf_generation']
+                if 'pdf_output_dir' in data:
+                    self.pdf_output_dir = data['pdf_output_dir']
+                if 'pdf_keep_days' in data:
+                    self.pdf_keep_days = data['pdf_keep_days']
                 logger.info(f"✅ 已加载配置文件: {self.config_file}")
         except FileNotFoundError:
             logger.info(f"📝 配置文件不存在，使用默认配置")
@@ -116,7 +141,16 @@ class CrawlerConfig:
                 'crawl_interval_minutes': self.crawl_interval_minutes,
                 'webhook_url': self.webhook_url,
                 'ad_keywords': self.ad_keywords,
-                'min_content_length': self.min_content_length
+                'min_content_length': self.min_content_length,
+                'enable_dedup': self.enable_dedup,
+                'max_dedup_records': self.max_dedup_records,
+                'enable_ad_filter': self.enable_ad_filter,
+                'output_modes': self.output_modes,
+                'output_file_dir': self.output_file_dir,
+                'output_file_format': self.output_file_format,
+                'enable_pdf_generation': self.enable_pdf_generation,
+                'pdf_output_dir': self.pdf_output_dir,
+                'pdf_keep_days': self.pdf_keep_days
             }
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -779,6 +813,14 @@ class DedupSettingsUpdate(BaseModel):
     enable_dedup: Optional[bool] = None
     max_dedup_records: Optional[int] = Field(None, ge=100, le=100000, description="最大去重记录数 (100-100000)")
 
+class OutputSettingsUpdate(BaseModel):
+    output_modes: Optional[List[str]] = None
+    output_file_dir: Optional[str] = None
+    output_file_format: Optional[str] = Field(None, description="文件格式：json, jsonl")
+    enable_pdf_generation: Optional[bool] = None
+    pdf_output_dir: Optional[str] = None
+    pdf_keep_days: Optional[int] = Field(None, ge=1, description="PDF 保留天数")
+
 # ==========================================
 # 6. 暴露的 RESTful API 接口
 # ==========================================
@@ -957,6 +999,52 @@ def update_dedup_settings(settings: DedupSettingsUpdate):
         "message": "去重配置已更新",
         "enable_dedup": config.enable_dedup,
         "max_dedup_records": config.max_dedup_records
+    }
+
+@app.get("/api/v1/output-settings", summary="获取输出配置")
+def get_output_settings():
+    """获取当前的输出配置（文件、PDF、Webhook）"""
+    return {
+        "output_modes": config.output_modes,
+        "output_file_dir": config.output_file_dir,
+        "output_file_format": config.output_file_format,
+        "enable_pdf_generation": config.enable_pdf_generation,
+        "pdf_output_dir": config.pdf_output_dir,
+        "pdf_keep_days": config.pdf_keep_days
+    }
+
+@app.put("/api/v1/output-settings", summary="修改输出配置")
+def update_output_settings(settings: OutputSettingsUpdate):
+    """修改输出配置（文件、PDF、Webhook）"""
+    if settings.output_modes is not None:
+        config.output_modes = settings.output_modes
+        logger.info(f"📝 更新 output_modes: {settings.output_modes}")
+    if settings.output_file_dir is not None:
+        config.output_file_dir = settings.output_file_dir
+        logger.info(f"📝 更新 output_file_dir: {settings.output_file_dir}")
+    if settings.output_file_format is not None:
+        config.output_file_format = settings.output_file_format
+        logger.info(f"📝 更新 output_file_format: {settings.output_file_format}")
+    if settings.enable_pdf_generation is not None:
+        config.enable_pdf_generation = settings.enable_pdf_generation
+        logger.info(f"📝 更新 enable_pdf_generation: {settings.enable_pdf_generation}")
+    if settings.pdf_output_dir is not None:
+        config.pdf_output_dir = settings.pdf_output_dir
+        logger.info(f"📝 更新 pdf_output_dir: {settings.pdf_output_dir}")
+    if settings.pdf_keep_days is not None:
+        config.pdf_keep_days = settings.pdf_keep_days
+        logger.info(f"📝 更新 pdf_keep_days: {settings.pdf_keep_days}")
+    
+    config.save_config()
+    return {
+        "status": "success",
+        "message": "输出配置已更新",
+        "output_modes": config.output_modes,
+        "output_file_dir": config.output_file_dir,
+        "output_file_format": config.output_file_format,
+        "enable_pdf_generation": config.enable_pdf_generation,
+        "pdf_output_dir": config.pdf_output_dir,
+        "pdf_keep_days": config.pdf_keep_days
     }
 
 @app.delete("/api/v1/dedup/clear", summary="清空历史记录")
