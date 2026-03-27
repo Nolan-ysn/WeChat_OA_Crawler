@@ -1,0 +1,15 @@
+{
+    "token": "your_token",
+    "cookie": "your_cookies",
+    "target_accounts": {
+        "对应的fakeid": "公众号名称"
+    },
+    "limit_per_account": 5,
+    "crawl_interval_minutes": 120,
+    "webhook_url": "https://webhook.site/xxxxxx",
+    "ad_keywords": [
+        "福利",
+        "优惠"
+    ],
+    "min_content_length": 100
+}
